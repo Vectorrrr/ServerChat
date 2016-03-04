@@ -2,8 +2,6 @@ package server;
 
 import model.Message;
 
-import static java.lang.Thread.sleep;
-
 /**
  * Created by igladush on 04.03.16.
  */
