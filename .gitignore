@@ -1,3 +1,5 @@
+*.iml
 /Server.iml
 /target
 /.idea
+/SERVER.iml
