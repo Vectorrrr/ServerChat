@@ -8,47 +8,97 @@ import java.net.Socket;
 /**
  * Created by igladush on 04.03.16.
  */
+
+/**
+ * Class create for sending and reception string by one compound
+ * */
 public class Compound extends Thread {
-    private final String ERROR_STREAM = "When I create stream I have error!";
     private final String ERROR_READ_OR_WRITE = "When I read or write I have error";
-    private final String ERROR_CLOSE = "When I close stream reader I have ERROR";
+    private final String ERROR_CLOSE_READER = "When I close stream reader I have ERROR";
+    private final String ERROR_CLOSE_WRITER = "When I close stream writer I have ERROR";
     private final String EXIT = "Buy";
     private DataInputStream reader;
     private DataOutputStream writer;
+    private Socket socket;
+    private Server server;
+    private int idCompound;
 
+    public int getIdCompound() {
+        return this.idCompound;
+    }
 
-    private int number;
-
-    public Compound(Socket socket, int Id) {
-        this.number = Id;
-        try {
-            reader = new DataInputStream(socket.getInputStream());
-            writer = new DataOutputStream(socket.getOutputStream());
-        } catch (IOException e) {
-            System.out.println(ERROR_STREAM);
-            e.printStackTrace();
-        }
+    public Compound(Socket socket, int Id, Server server) {
+        this.socket = socket;
+        this.idCompound = Id;
+        this.server = server;
     }
 
 
     @Override
     public void run() {
+        createStreams();
         read();
-        closeStream();
-        Server.users.remove(this);
-        System.out.println("I closed the clint number" + this.number);
+        closeAllStreams();
+        server.removeCompound(this);
+        System.out.println("I closed the clint " + this.idCompound);
     }
 
-    private void closeStream() {
+    private void createStreams() {
         try {
-            reader.close();
-            writer.close();
+            writer = new DataOutputStream(socket.getOutputStream());
         } catch (IOException e) {
-            System.out.println(ERROR_CLOSE);
+            e.printStackTrace();
+        }
+        try {
+            reader = new DataInputStream(socket.getInputStream());
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    //methods that close all stream
+    private void closeAllStreams() {
+        closeReader();
+        closeWriter();
+    }
+
+    private void closeWriter() {
+        try {
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(ERROR_CLOSE_WRITER);
+                }
+            }
+        }
+    }
+
+    private void closeReader() {
+        try {
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (reader != null) {
+                try {
+                    writer.close();
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(ERROR_CLOSE_READER);
+                }
+            }
+        }
+    }
+
+    /**
+     * this method create for read all message from one compound
+     * when co,pound send exit word, this method send secret word for client
+     * this word signals client, that server stopped this socket correct
+     */
     private void read() {
         String message;
         while (true) {
@@ -57,32 +107,34 @@ public class Compound extends Thread {
                 System.out.println(message);
 
                 if (EXIT.equals(message)) {
-                    writer.writeUTF("1234567890");
-                    writer.flush();
+                    try (DataOutputStream writer = new DataOutputStream(socket.getOutputStream())) {
+                        writer.writeUTF("1234567890");
+                        writer.flush();
 
+                    } catch (IOException e) {
+                        System.out.println(ERROR_CLOSE_READER);
+                    }
                     break;
                 }
-                Server.allMessage.add(new Message(message, number));
+
+                server.addMessage(new Message(message, idCompound));
             } catch (IOException e) {
                 System.out.println(ERROR_READ_OR_WRITE);
                 e.printStackTrace();
             }
         }
-
-
     }
 
+    //todo send message this user/ I don't know that good use every sending create writer?
+
+    /**
+     * This method send some string for this Compound
+     */
     public void send(String s) {
-        //todo constant
         try {
             writer.writeUTF(s);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
-    public int getNumber() {
-        return this.number;
-    }
-
 }
